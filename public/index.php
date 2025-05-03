@@ -6,7 +6,9 @@ use Nofchallenge\HelloWorld;
 use FastRoute\RouteCollector;
 use Middlewares\FastRoute;
 use Middlewares\RequestHandler;
+use Narrowspark\HttpEmitter\SapiEmitter;
 use Relay\Relay;
+use Laminas\Diactoros\Response;
 use Laminas\Diactoros\ServerRequestFactory;
 use function DI\create;
 use function DI\get;
@@ -19,8 +21,11 @@ $containerBuilder->useAutowiring(false);
 $containerBuilder->useAttributes(false);
 $containerBuilder->addDefinitions([
     HelloWorld::class => create(HelloWorld::class)
-        ->constructor(get('Foo')),
-    'Foo' => 'bar'
+        ->constructor(get('Foo'), get('Response')),
+    'Foo' => 'bar',
+    'Response' => function() {
+        return new Response();
+    },
 ]);
 
 $container = $containerBuilder->build();
@@ -34,4 +39,7 @@ $middlewareQueue[] = new FastRoute($routes);
 $middlewareQueue[] = new RequestHandler($container);
 
 $requestHandler = new Relay($middlewareQueue);
-$requestHandler->handle(ServerRequestFactory::fromGlobals());
+$response = $requestHandler->handle(ServerRequestFactory::fromGlobals());
+
+$emitter = new SapiEmitter();
+return $emitter->emit($response);
